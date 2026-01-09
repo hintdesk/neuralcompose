@@ -1,9 +1,9 @@
 import * as ui from './ui.js';
-import { state, setState, getState } from './state.js';
+import { state, setState } from './state.js';
 import { getApiConfig, populateModels } from './config.js';
 import { getCleanBody, getCitations, formatEmailContent } from './email.js';
-import { hideError, showError, handleRewriteError, handleApplyError, getErrorMessage } from './errorHandler.js';
-import { SYSTEM_PROMPT, REWRITE_CONFIG } from './constants.js';
+import { handleRewriteError, handleApplyError, getErrorMessage } from './errorHandler.js';
+import { SYSTEM_PROMPT, AI_MODEL_CONFIG, UI_CONFIG } from './constants.js';
 
 /**
  * Creates the message array for the AI API request
@@ -47,7 +47,7 @@ async function rewrite() {
             body: JSON.stringify({
                 model: state.model,
                 messages: getMessages(input),
-                temperature: REWRITE_CONFIG.temperature
+                temperature: AI_MODEL_CONFIG.temperature
             })
         });
 
@@ -85,7 +85,7 @@ async function handleApplyClick() {
         setTimeout(() => {
             ui.setButtonState(state.applyButton, false, "Apply");
             window.close();
-        }, REWRITE_CONFIG.buttonTimeout);
+        }, UI_CONFIG.SUCCESS_MESSAGE_DURATION_MS);
 
     } catch (err) {
         handleApplyError(err, state.applyButton);

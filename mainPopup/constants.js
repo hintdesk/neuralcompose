@@ -1,3 +1,7 @@
+/**
+ * System prompt that instructs the AI model on how to rewrite emails
+ * Ensures the AI outputs only the rewritten text without any extra commentary
+ */
 export const SYSTEM_PROMPT = "You are an expert professional editor." +
     "Your sole task is to rewrite the provided email input to be more professional, clear, and polished " +
     "while maintaining the original language. Strictly adhere to these rules:" +
@@ -7,6 +11,10 @@ export const SYSTEM_PROMPT = "You are an expert professional editor." +
     "4. Maintain the original language of the input." +
     "5. If the input is a rough draft or bullet points, expand them into a complete, professional email structure.";
 
+/**
+ * API endpoint configurations for different AI providers
+ * Contains URLs and header functions for GitHub Models and OpenAI
+ */
 export const API_CONFIG = {
     github: {
         url: "https://models.github.ai/inference/chat/completions",
@@ -26,6 +34,10 @@ export const API_CONFIG = {
     }
 };
 
+/**
+ * Available AI models for each provider
+ * Used to populate the model dropdown in the config UI
+ */
 export const MODELS_BY_PROVIDER = {
     github: [
         { value: "openai/gpt-4.1", text: "GPT-4.1" },
@@ -39,9 +51,16 @@ export const MODELS_BY_PROVIDER = {
     ]
 };
 
-export const REWRITE_CONFIG = {
-    temperature: 0.7,
-    maxInputLength: 1000,
-    buttonTimeout: 500,
-    buttonErrorTimeout: 2000
+/**
+ * AI model behavior configuration
+ */
+export const AI_MODEL_CONFIG = {
+    temperature: 0.7,  // Controls creativity (0-1): lower = more focused, higher = more creative
+};
+
+/**
+ * UI timing configuration
+ */
+export const UI_CONFIG = {
+    SUCCESS_MESSAGE_DURATION_MS: 500  // How long to show "Applied" message before closing popup
 };
