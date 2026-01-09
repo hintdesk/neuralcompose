@@ -13,7 +13,3 @@ export function setState(updates) {
 export function getState() {
     return { ...state };
 }
-
-export function isReady() {
-    return state.activeTab && state.apiKey;
-}

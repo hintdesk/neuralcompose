@@ -1,10 +1,15 @@
 import * as ui from './ui.js';
-import { state, setState, getState, isReady } from './state.js';
+import { state, setState, getState } from './state.js';
 import { getApiConfig, populateModels } from './config.js';
 import { getCleanBody, getCitations, formatEmailContent } from './email.js';
 import { hideError, showError, handleRewriteError, handleApplyError, getErrorMessage } from './errorHandler.js';
 import { SYSTEM_PROMPT, REWRITE_CONFIG } from './constants.js';
 
+/**
+ * Creates the message array for the AI API request
+ * @param {string} input - The email text to rewrite
+ * @returns {Array} Array of message objects with system and user roles
+ */
 function getMessages(input) {
     return [
         {
@@ -61,6 +66,9 @@ async function rewrite() {
     }
 }
 
+/**
+ * Applies the rewritten email content back to the compose window
+ */
 async function handleApplyClick() {
     try {
         ui.setButtonState(state.applyButton, true, "Applying...");
@@ -111,6 +119,9 @@ function handleSaveClick() {
     }
 }
 
+/**
+ * Loads saved API key and provider settings from storage
+ */
 async function loadApiKey() {
     const result = await browser.storage.local.get(["apiKey", "provider", "model"]);
     const updates = {};
@@ -145,6 +156,9 @@ function loadVersion() {
     }
 }
 
+/**
+ * Initializes all event listeners for UI elements
+ */
 function initEventListeners() {
     const applyButton = document.getElementById("applyButton");
     if (applyButton) {
@@ -165,20 +179,30 @@ function initEventListeners() {
     if (providerSelect) providerSelect.addEventListener("change", handleProviderChange);
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+/**
+ * Initializes the extension popup
+ * Sets up active tab, loads settings, and performs initial rewrite
+ */
+async function initializePopup() {
     // Get the active tab in Thunderbird
-    let tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tabs.length == 0) {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) {
+        console.warn("No active tab found");
         return;
     }
     setState({ activeTab: tabs[0] });
 
+    // Set up UI and load saved settings
     initEventListeners();
     loadVersion();
     await loadApiKey();
     
+    // Populate model dropdown with current provider's models
     const modelSelect = document.getElementById("model");
     populateModels(state.provider, modelSelect, state.model);
     
+    // Perform initial rewrite
     await rewrite();
-});
+}
+
+document.addEventListener("DOMContentLoaded", initializePopup);

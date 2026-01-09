@@ -19,10 +19,10 @@ export function populateModels(provider, modelSelect, currentModel) {
     const models = getModelsByProvider(provider);
     modelSelect.innerHTML = "";
     
-    models.forEach(m => {
+    models.forEach(model => {
         const option = document.createElement("option");
-        option.value = m.value;
-        option.textContent = m.text;
+        option.value = model.value;
+        option.textContent = model.text;
         modelSelect.appendChild(option);
     });
     
