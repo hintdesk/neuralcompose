@@ -3,7 +3,7 @@ import { state, setState } from './state.js';
 import { getApiConfig, populateModels } from './config.js';
 import { getCleanBody, getCitations, formatEmailContent } from './email.js';
 import { handleRewriteError, handleApplyError, getErrorMessage } from './errorHandler.js';
-import { SYSTEM_PROMPT, AI_MODEL_CONFIG, UI_CONFIG } from './constants.js';
+import { SYSTEM_PROMPT, UI_CONFIG } from './constants.js';
 
 /**
  * Creates the message array for the AI API request
@@ -46,8 +46,7 @@ async function rewrite() {
             headers: headers,
             body: JSON.stringify({
                 model: state.model,
-                messages: getMessages(input),
-                temperature: AI_MODEL_CONFIG.temperature
+                messages: getMessages(input)
             })
         });
 

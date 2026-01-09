@@ -2,7 +2,7 @@ export const state = {
     activeTab: null,
     apiKey: null,
     provider: "github",
-    model: "openai/gpt-4.1",
+    model: "openai/gpt-5-mini",
     applyButton: null
 };
 

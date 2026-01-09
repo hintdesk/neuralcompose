@@ -40,22 +40,15 @@ export const API_CONFIG = {
  */
 export const MODELS_BY_PROVIDER = {
     github: [
+        { value: "openai/gpt-5-mini", text: "GPT-5 mini" },
         { value: "openai/gpt-4.1", text: "GPT-4.1" },
-        { value: "openai/gpt-4o", text: "GPT-4o" },
-        { value: "openai/gpt-3.5-turbo", text: "GPT-3.5 Turbo" }
+        { value: "openai/gpt-4o", text: "GPT-4o" }
     ],
     openai: [
-        { value: "gpt-4", text: "GPT-4" },
-        { value: "gpt-4o", text: "GPT-4o" },
-        { value: "gpt-3.5-turbo", text: "GPT-3.5 Turbo" }
+        { value: "gpt-5-mini", text: "GPT-5 mini" },
+        { value: "gpt-4.1", text: "GPT-4.1" },
+        { value: "gpt-4o", text: "GPT-4o" }
     ]
-};
-
-/**
- * AI model behavior configuration
- */
-export const AI_MODEL_CONFIG = {
-    temperature: 0.7,  // Controls creativity (0-1): lower = more focused, higher = more creative
 };
 
 /**
