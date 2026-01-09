@@ -1,4 +1,4 @@
-import { showConfigSection, hideOutputSection, hideActionsSection, hideConfigSection, showOutputSection,showActionsSection } from './ui.js';
+import * as ui from './ui.js';
 
 let activeTab = null;
 let applyButton = null;
@@ -88,14 +88,13 @@ async function rewrite() {
     const input = await getCleanBody(activeTab.id);
 
     if (!input || input.trim().length === 0) {
+        ui.setOutput("No input message found");
         return;
     }
 
     try {
         // Clear any previous error
-        const errorDiv = document.getElementById("error");
-        errorDiv.textContent = "";
-        errorDiv.classList.add("d-none");
+        ui.hideErrorSection();
         const { url, headers } = getApiConfig();
         const response = await fetch(url, {
             method: "POST",
@@ -117,8 +116,7 @@ async function rewrite() {
         }
         const result = await response.json();
 
-        const displayArea = document.getElementById("output");
-        displayArea.textContent = result.choices[0].message.content;
+        ui.setOutput(result.choices[0].message.content);
 
         // Enable Apply button after successful rewrite
         if (applyButton) applyButton.disabled = false;
@@ -134,13 +132,12 @@ async function rewrite() {
 }
 
 async function handleApplyClick() {
-    const displayArea = document.getElementById("output");
     try {
         applyButton.disabled = true;
         applyButton.textContent = "Applying...";
 
         // Use the stored activeTab
-        const newBody = displayArea.textContent || "";       
+        const newBody = ui.getOutput();
 
         let htmlContent = newBody.replace(/\n/g, "<br>");
         const citations = await getCitations(activeTab.id);
@@ -166,16 +163,16 @@ async function handleApplyClick() {
 
 
 function handleConfigClick() {
-    showConfigSection();
-    hideOutputSection();
-    hideActionsSection();    
+    ui.showConfigSection();
+    ui.hideOutputSection();
+    ui.hideActionsSection();    
 }
 
 function handleCloseClick() {
     console.log("Close config clicked");
-    hideConfigSection();
-    showOutputSection();
-    showActionsSection();
+    ui.hideConfigSection();
+    ui.showOutputSection();
+    ui.showActionsSection();
 
 }
 
@@ -192,10 +189,8 @@ function handleSaveClick() {
         provider = providerValue;
         model = modelValue;
         alert("Settings saved!");
-        const configDiv = document.getElementById("config");
-        configDiv.classList.add("d-none");
-        const outputDiv = document.getElementById("output");
-        outputDiv.classList.remove("d-none");
+        ui.hideConfigSection();
+        ui.showOutputSection();
         
     } else {
         alert("Please enter a valid API Key.");
@@ -249,13 +244,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (providerSelect) providerSelect.addEventListener("change", handleProviderChange);
 
     loadVersion();
-    // Load saved settings
     await loadApiKey();
-
-    // Populate models based on loaded provider
     populateModels(provider);    
-
-    // Populate output on load
     await rewrite();
 });
 

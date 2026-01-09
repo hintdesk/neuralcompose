@@ -27,3 +27,19 @@ export function showActionsSection() {
     const actions = document.getElementById("actions");
     actions.classList.remove("d-none");
 }
+
+export function hideErrorSection() {
+    const errorDiv = document.getElementById("error");
+    errorDiv.textContent = "";
+    errorDiv.classList.add("d-none");
+}
+
+export function setOutput(message) {
+    const displayArea = document.getElementById("output");
+    displayArea.textContent = message;
+}
+
+export function getOutput() {
+    const displayArea = document.getElementById("output");
+    return displayArea.textContent || "";
+}
