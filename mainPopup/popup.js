@@ -1,43 +1,15 @@
 import * as ui from './ui.js';
-
-let activeTab = null;
-let applyButton = null;
-let apiKey = null;
-let provider = "github";
-let model = "openai/gpt-4.1";
-
-function getApiConfig() {
-    let url, headers;
-    if (provider === "github") {
-        url = "https://models.github.ai/inference/chat/completions";
-        headers = {
-            "accept": "application/vnd.github+json",
-            "authorization": `Bearer ${apiKey}`,
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-        };
-    } else if (provider === "openai") {
-        url = "https://api.openai.com/v1/chat/completions";
-        headers = {
-            "authorization": `Bearer ${apiKey}`,
-            "content-type": "application/json"
-        };
-    }
-    return { url, headers };
-}
+import { state, setState, getState, isReady } from './state.js';
+import { getApiConfig, populateModels } from './config.js';
+import { getCleanBody, getCitations, formatEmailContent } from './email.js';
+import { hideError, showError, handleRewriteError, handleApplyError, getErrorMessage } from './errorHandler.js';
+import { SYSTEM_PROMPT, REWRITE_CONFIG } from './constants.js';
 
 function getMessages(input) {
     return [
         {
             role: "system",
-            content: "You are an expert professional editor." +
-                "Your sole task is to rewrite the provided email input to be more professional, clear, and polished " +
-                "while maintaining the original language. Strictly adhere to these rules:" +
-                "1. Output ONLY the rewritten email text." +
-                "2. Do not include greetings, introductions, or closing remarks to the user." +
-                "3. Do not include conversational filler or explanations." +
-                "4. Maintain the original language of the input." +
-                "5. If the input is a rough draft or bullet points, expand them into a complete, professional email structure."
+            content: SYSTEM_PROMPT
         },
         {
             role: "user",
@@ -46,46 +18,14 @@ function getMessages(input) {
     ];
 }
 
-function populateModels(providerValue) {
-    const modelSelect = document.getElementById("model");
-    modelSelect.innerHTML = ""; // Clear existing options
-    let models = [];
-    if (providerValue === "github") {
-        models = [
-            { value: "openai/gpt-4.1", text: "GPT-4.1" },
-            { value: "openai/gpt-4o", text: "GPT-4o" },
-            { value: "openai/gpt-3.5-turbo", text: "GPT-3.5 Turbo" }
-        ];
-    } else if (providerValue === "openai") {
-        models = [
-            { value: "gpt-4", text: "GPT-4" },
-            { value: "gpt-4o", text: "GPT-4o" },
-            { value: "gpt-3.5-turbo", text: "GPT-3.5 Turbo" }
-        ];
-    }
-    models.forEach(m => {
-        const option = document.createElement("option");
-        option.value = m.value;
-        option.textContent = m.text;
-        modelSelect.appendChild(option);
-    });
-    // Set to saved model if it exists, else first one
-    if (model && models.some(m => m.value === model)) {
-        modelSelect.value = model;
-    } else {
-        model = models[0].value;
-        modelSelect.value = model;
-    }
-}
-
 async function rewrite() {
-    if (!activeTab) {
+    if (!state.activeTab) {
         return;
     }
 
     // Keep apply button disabled until rewrite succeeds
-    if (applyButton) applyButton.disabled = true;
-    const input = await getCleanBody(activeTab.id);
+    if (state.applyButton) state.applyButton.disabled = true;
+    const input = await getCleanBody(state.activeTab.id);
 
     if (!input || input.trim().length === 0) {
         ui.setOutput("No input message found");
@@ -95,72 +35,54 @@ async function rewrite() {
     try {
         // Clear any previous error
         ui.hideErrorSection();
-        const { url, headers } = getApiConfig();
+        const { url, headers } = getApiConfig(state.provider, state.apiKey);
         const response = await fetch(url, {
             method: "POST",
             headers: headers,
             body: JSON.stringify({
-                model: model,
+                model: state.model,
                 messages: getMessages(input),
-                temperature: 0.7
+                temperature: REWRITE_CONFIG.temperature
             })
         });
 
         console.log(JSON.stringify(response.status));
         if (response.status != 200) {
-            if (response.status === 401) {
-                throw new Error("Missing API key or incorrect credentials. Check your configuration.");
-            } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            throw new Error(getErrorMessage(response.status));
         }
         const result = await response.json();
 
         ui.setOutput(result.choices[0].message.content);
 
         // Enable Apply button after successful rewrite
-        if (applyButton) applyButton.disabled = false;
+        if (state.applyButton) state.applyButton.disabled = false;
     } catch (error) {
-        console.error("Error during rewrite:", error);
-        const errorDiv = document.getElementById("error");
-        errorDiv.textContent = error.message;
-        // Keep apply button disabled on error
-        if (applyButton) applyButton.disabled = true;
-        // Show the error section
-        errorDiv.classList.remove("d-none");
+        handleRewriteError(error);
     }
 }
 
 async function handleApplyClick() {
     try {
-        applyButton.disabled = true;
-        applyButton.textContent = "Applying...";
+        ui.setButtonState(state.applyButton, true, "Applying...");
 
-        // Use the stored activeTab
         const newBody = ui.getOutput();
-
-        let htmlContent = newBody.replace(/\n/g, "<br>");
-        const citations = await getCitations(activeTab.id);
+        let htmlContent = formatEmailContent(newBody);
+        const citations = await getCitations(state.activeTab.id);
         
-        await browser.compose.setComposeDetails(activeTab.id, {
+        await browser.compose.setComposeDetails(state.activeTab.id, {
             body: htmlContent + "<br><br><br><br>" + citations
         });
 
-        applyButton.textContent = "Applied";
+        ui.setButtonState(state.applyButton, false, "Applied");
         setTimeout(() => {
-            applyButton.textContent = "Apply";
-            applyButton.disabled = false;
+            ui.setButtonState(state.applyButton, false, "Apply");
             window.close();
-        }, 1500);
+        }, REWRITE_CONFIG.buttonTimeout);
 
     } catch (err) {
-        console.error("Failed to apply body:", err);
-        applyButton.textContent = "Error";
-        applyButton.disabled = false;
-        setTimeout(() => applyButton.textContent = "Apply", 2000);
+        handleApplyError(err, state.applyButton);
     }
 }
-
 
 function handleConfigClick() {
     ui.showConfigSection();
@@ -173,25 +95,17 @@ function handleCloseClick() {
     ui.hideConfigSection();
     ui.showOutputSection();
     ui.showActionsSection();
-
 }
 
 function handleSaveClick() {
-    const apiKeyInput = document.getElementById("apiKey");
-    const apiKeyValue = apiKeyInput.value.trim();
-    const providerSelect = document.getElementById("provider");
-    const providerValue = providerSelect.value;
-    const modelSelect = document.getElementById("model");
-    const modelValue = modelSelect.value;
-    if (apiKeyValue) {
-        browser.storage.local.set({ apiKey: apiKeyValue, provider: providerValue, model: modelValue });
-        apiKey = apiKeyValue;
-        provider = providerValue;
-        model = modelValue;
+    const { apiKey, provider, model } = ui.getFormValues();
+    
+    if (apiKey) {
+        browser.storage.local.set({ apiKey, provider, model });
+        setState({ apiKey, provider, model });
         alert("Settings saved!");
         ui.hideConfigSection();
         ui.showOutputSection();
-        
     } else {
         alert("Please enter a valid API Key.");
     }
@@ -199,37 +113,44 @@ function handleSaveClick() {
 
 async function loadApiKey() {
     const result = await browser.storage.local.get(["apiKey", "provider", "model"]);
-    if (result.apiKey) {
-        apiKey = result.apiKey;
-        document.getElementById("apiKey").value = apiKey;
-    }
-    if (result.provider) {
-        provider = result.provider;
-        document.getElementById("provider").value = provider;
-    }
-    if (result.model) {
-        model = result.model;
-        document.getElementById("model").value = model;
-    }
+    const updates = {};
+    
+    if (result.apiKey) updates.apiKey = result.apiKey;
+    if (result.provider) updates.provider = result.provider;
+    if (result.model) updates.model = result.model;
+    
+    setState(updates);
+    
+    ui.setFormValues(
+        result.apiKey || "",
+        result.provider || state.provider,
+        result.model || state.model
+    );
 }
 
 function handleProviderChange(e) {
     const newProvider = e.target.value;
-    provider = newProvider;
-    populateModels(newProvider);
+    setState({ provider: newProvider });
+    const modelSelect = document.getElementById("model");
+    const newModel = populateModels(newProvider, modelSelect, state.model);
+    setState({ model: newModel });
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-    // Get the active tab in Thunderbird
-    let tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tabs.length == 0) {
-        return;
+function loadVersion() {
+    const manifestData = browser.runtime.getManifest();    
+    const version = manifestData.version;
+    const versionElement = document.getElementById('app-version');
+    if (versionElement) {
+        versionElement.textContent = "v" + version;
     }
-    activeTab = tabs[0];
+}
 
-    // Set up event listeners
-    applyButton = document.getElementById("applyButton");
-    if (applyButton) applyButton.addEventListener("click", handleApplyClick);
+function initEventListeners() {
+    const applyButton = document.getElementById("applyButton");
+    if (applyButton) {
+        setState({ applyButton });
+        applyButton.addEventListener("click", handleApplyClick);
+    }
 
     const configButton = document.getElementById("configButton");
     if (configButton) configButton.addEventListener("click", handleConfigClick);
@@ -242,53 +163,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const providerSelect = document.getElementById("provider");
     if (providerSelect) providerSelect.addEventListener("change", handleProviderChange);
+}
 
+document.addEventListener("DOMContentLoaded", async () => {
+    // Get the active tab in Thunderbird
+    let tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length == 0) {
+        return;
+    }
+    setState({ activeTab: tabs[0] });
+
+    initEventListeners();
     loadVersion();
     await loadApiKey();
-    populateModels(provider);    
+    
+    const modelSelect = document.getElementById("model");
+    populateModels(state.provider, modelSelect, state.model);
+    
     await rewrite();
 });
-
-function loadVersion() {
-    const manifestData = browser.runtime.getManifest();    
-    const version = manifestData.version;
-    const versionElement = document.getElementById('app-version');
-    if (versionElement) {
-        versionElement.textContent = "v" + version;
-    }
-}
-
-async function getCleanBody(tabId) {
-    let details = await browser.compose.getComposeDetails(tabId);
-    let htmlString = details.body;
-
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(htmlString, 'text/html');
-
-    let prefixes = doc.querySelectorAll('.moz-cite-prefix');
-    prefixes.forEach(el => el.remove());
-
-    let citations = doc.querySelectorAll('blockquote[type="cite"]');
-    citations.forEach(el => el.remove());
-
-    let cleanText = doc.body.innerText.trim();
-
-    return cleanText.substring(0, 1000);
-}
-
-async function getCitations(tabId) {
-    let details = await messenger.compose.getComposeDetails(tabId);
-    let htmlString = details.body;
-
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(htmlString, 'text/html');
-
-    let citePrefix = doc.querySelector('.moz-cite-prefix');
-    let citeBody = doc.querySelector('blockquote[type="cite"]');
-    
-    let oldEmailHtml = "";
-    if (citePrefix) oldEmailHtml += citePrefix.outerHTML;
-    if (citeBody) oldEmailHtml += citeBody.outerHTML;
-
-    return oldEmailHtml;
-}
